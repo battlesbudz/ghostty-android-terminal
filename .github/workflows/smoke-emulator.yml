@@ -13,9 +13,15 @@ name: Emulator smoke test
 #    "qemu-system-aarch64-headless: failed to initialize HVF" / QEMU
 #    exits code 1; GitHub's standard macOS 15 runners do not expose the
 #    Hypervisor framework to guests.
-#  * ubuntu-24.04-arm (current): GitHub's ARM64 Linux runners expose
-#    /dev/kvm, so the arm64 guest runs KVM-accelerated — the route the
-#    Android emulator is actually supported on.
+#  * ubuntu-24.04-arm: dead end twice over (runs 41120228406 and
+#    41120350952). /dev/kvm does not exist on those runners ("ls: cannot
+#    access '/dev/kvm'"), and Google's SDK repository ships the emulator
+#    package for linux_x64 only — no linux_aarch64 build exists, so
+#    sdkmanager fails with "Warning: Failed to find package 'emulator'".
+#  * macos-15-xlarge (current): the larger macOS runners are bare-metal
+#    Apple Silicon, where HVF works. Larger runners are billed even for
+#    public repos; if the account has no billing set up, the job fails
+#    to start and that failure is the answer.
 # A local x86 VM cannot do this at all: current emulators refuse to boot
 # arm64 images on x86_64 hosts, and an x86_64 guest under pure software
 # emulation (no KVM) did not finish its first boot in 37 minutes.
@@ -46,18 +52,10 @@ permissions:
 
 jobs:
   smoke:
-    runs-on: ubuntu-24.04-arm
-    timeout-minutes: 60
+    runs-on: macos-15-xlarge
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-
-      - name: Enable KVM for the emulator (best effort, diagnostic)
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
-            | sudo tee /etc/udev/rules.d/99-kvm4all.rules || true
-          sudo udevadm control --reload-rules || true
-          sudo udevadm trigger --name-match=kvm || true
-          ls -la /dev/kvm || echo "/dev/kvm NOT present on this runner"
 
       - name: Download spike APK from release
         env:
