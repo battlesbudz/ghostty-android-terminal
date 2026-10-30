@@ -1,0 +1,71 @@
+name: Emulator smoke test
+
+# Phase 0 sandbox spike: run the by-hand install checklist against the
+# spike APK inside an arm64 Android emulator, BEFORE the APK is handed to
+# a phone. The app is arm64-native (arm64chroot), so the emulator must run
+# an arm64-v8a system image — only an ARM host can do that at usable
+# speed, hence macos-14 (Apple Silicon) + android-emulator-runner.
+# A local x86 VM cannot do this at all: current emulators refuse to boot
+# arm64 images on x86_64 hosts, and an x86_64 guest under pure software
+# emulation (no KVM) did not finish its first boot in 37 minutes.
+#
+# The checklist itself lives in .github/scripts/smoke.sh. It proves what
+# automation honestly reaches on stock Android: APK install, first-run
+# wizard, Alpine rootfs extraction (verified in the app's data dir), and
+# the app process surviving its first auto-created userland session.
+# It deliberately does NOT drive a shell inside the userland: the app
+# exposes no intent/service/API route into one, so the checklist stops
+# at extraction-verified and says so. Samsung One UI behaviour and real
+# Fold 6 speed remain phone-only questions no emulator can answer.
+#
+# The APK is consumed from the release published by build-spike.yml
+# (one source of truth for the tested artifact; no rebuild here).
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag holding the spike APK"
+        required: true
+        default: "spike-build-1"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: macos-14
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download spike APK from release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          mkdir -p apk
+          gh release download "$RELEASE_TAG" --pattern '*.apk' --dir apk
+          ls -la apk
+          shasum -a 256 apk/*.apk
+
+      - name: Run smoke checklist in arm64 emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: default
+          arch: arm64-v8a
+          profile: pixel_6
+          avd-name: smoke-avd
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -camera-back none -noaudio -no-boot-anim
+          script: bash .github/scripts/smoke.sh
+
+      - name: Upload smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-evidence-${{ github.run_id }}
+          path: smoke-out/
+          if-no-files-found: warn
