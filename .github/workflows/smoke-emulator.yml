@@ -4,10 +4,18 @@ name: Emulator smoke test
 # spike APK inside an arm64 Android emulator, BEFORE the APK is handed to
 # a phone. The app is arm64-native (arm64chroot), so the emulator must run
 # an arm64-v8a system image — only an ARM host can do that at usable
-# speed, hence a macOS ARM runner + android-emulator-runner. (macos-15,
-# not macos-14: the macos-14 image is retired 2026-11-02 and its
-# scheduled brownout on 2026-10-30 cancelled the first run of this
-# workflow in one second, job 124276982464.)
+# speed, hence an ARM runner + android-emulator-runner. Runner history,
+# learned from this workflow's own runs on 2026-10-30:
+#  * macos-14: image retired 2026-11-02; its scheduled brownout that day
+#    cancelled run 41117956589 in one second (no runner, no steps).
+#  * macos-15 (standard): the emulator cannot start at all — verbatim
+#    from run 41118111225: "HVF error: HV_UNSUPPORTED" /
+#    "qemu-system-aarch64-headless: failed to initialize HVF" / QEMU
+#    exits code 1; GitHub's standard macOS 15 runners do not expose the
+#    Hypervisor framework to guests.
+#  * ubuntu-24.04-arm (current): GitHub's ARM64 Linux runners expose
+#    /dev/kvm, so the arm64 guest runs KVM-accelerated — the route the
+#    Android emulator is actually supported on.
 # A local x86 VM cannot do this at all: current emulators refuse to boot
 # arm64 images on x86_64 hosts, and an x86_64 guest under pure software
 # emulation (no KVM) did not finish its first boot in 37 minutes.
@@ -38,10 +46,18 @@ permissions:
 
 jobs:
   smoke:
-    runs-on: macos-15
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+
+      - name: Enable KVM for the emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -la /dev/kvm
 
       - name: Download spike APK from release
         env:
@@ -51,7 +67,7 @@ jobs:
           mkdir -p apk
           gh release download "$RELEASE_TAG" --pattern '*.apk' --dir apk
           ls -la apk
-          shasum -a 256 apk/*.apk
+          sha256sum apk/*.apk || shasum -a 256 apk/*.apk
 
       - name: Run smoke checklist in arm64 emulator
         uses: reactivecircus/android-emulator-runner@v2

@@ -2,7 +2,8 @@
 # Emulator smoke checklist for the Phase 0 sandbox spike APK.
 #
 # Runs INSIDE reactivecircus/android-emulator-runner, on a booted
-# arm64-v8a API 36 emulator (macos-14). Mirrors the by-hand checklist:
+# arm64-v8a API 36 emulator (KVM-accelerated, ARM Linux runner).
+# Mirrors the by-hand checklist:
 # install -> launch -> wizard (Continue -> Install Alpine Linux) ->
 # first-run extraction -> finish (Start) -> observe the auto-created
 # userland session.
@@ -102,7 +103,7 @@ say "guest sdk: $(adb shell getprop ro.build.version.sdk | tr -d '\r')"
 say "guest abi: $(adb shell getprop ro.product.cpu.abi | tr -d '\r')"
 say "guest avd: $(adb shell getprop ro.boot.qemu.avd_name | tr -d '\r')"
 say "apk under test: $APK"
-[ -n "$APK" ] && shasum -a 256 "$APK" | tee -a "$RESULTS"
+[ -n "$APK" ] && { sha256sum "$APK" || shasum -a 256 "$APK"; } | tee -a "$RESULTS"
 
 # --- 1. Install -------------------------------------------------------------
 step "1. adb install"
