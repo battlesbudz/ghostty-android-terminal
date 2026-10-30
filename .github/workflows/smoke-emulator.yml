@@ -4,7 +4,10 @@ name: Emulator smoke test
 # spike APK inside an arm64 Android emulator, BEFORE the APK is handed to
 # a phone. The app is arm64-native (arm64chroot), so the emulator must run
 # an arm64-v8a system image — only an ARM host can do that at usable
-# speed, hence macos-14 (Apple Silicon) + android-emulator-runner.
+# speed, hence a macOS ARM runner + android-emulator-runner. (macos-15,
+# not macos-14: the macos-14 image is retired 2026-11-02 and its
+# scheduled brownout on 2026-10-30 cancelled the first run of this
+# workflow in one second, job 124276982464.)
 # A local x86 VM cannot do this at all: current emulators refuse to boot
 # arm64 images on x86_64 hosts, and an x86_64 guest under pure software
 # emulation (no KVM) did not finish its first boot in 37 minutes.
@@ -35,7 +38,7 @@ permissions:
 
 jobs:
   smoke:
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
