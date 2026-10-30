@@ -30,6 +30,17 @@ to build that proof app via GitHub Actions. No app behavior is changed.
 2. `app/build.gradle` — `ndkVersion "28.2.13676358"` → `"27.2.12479018"`
    (build-only pin; upstream's README requires NDK r27+).
 3. This file (new).
+4. `native/arm64emu` — the pinned submodule commit
+   (`597189c644e02a175a613f08df3a83afae1cacbf`) is vendored into this
+   repository as a plain tree, byte-identical to that commit's tree
+   (tree SHA `831629000ccaaf3c85b4dd2b27616dd47ca28ffd`, verified blob by
+   blob). Reason: upstream rewrote sylirre/arm64emu's history the same
+   day this fork was made (arm64emu, arm64emu-user and chroot-ng were
+   merged into a single repository), and the pinned commit no longer
+   exists on GitHub, so no git fetch can check it out. The content is
+   upstream's, unmodified; the other two submodules
+   (`native/arm64chroot`, `native/chroot-ng`) still fetch from upstream
+   normally.
 
 Everything else — every line of application and native code — is upstream,
 unmodified.
