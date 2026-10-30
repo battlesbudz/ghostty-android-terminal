@@ -18,6 +18,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+          # Full history: the native submodules are pinned to commits that
+          # are ancestors of their branch tips, and a shallow (--depth=1)
+          # submodule fetch cannot resolve those SHAs ("not our ref").
+          fetch-depth: 0
 
       - uses: actions/setup-java@v4
         with:
