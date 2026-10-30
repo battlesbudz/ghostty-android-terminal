@@ -52,7 +52,7 @@ permissions:
 
 jobs:
   smoke:
-    runs-on: macos-15-xlarge
+    runs-on: macos-26
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
