@@ -23,12 +23,16 @@ to build that proof app via GitHub Actions. No app behavior is changed.
 
 1. `.github/workflows/build-spike.yml` (new) — manual `workflow_dispatch`
    build: Temurin JDK 21, Android SDK platform 36 + build-tools 36.0.0 +
-   NDK 27.2.12479018, Alpine rootfs produced by upstream's own
-   `scripts/build-alpine-rootfs.sh` (official minirootfs, sha256 sidecar
-   verified), `./gradlew :app:assembleDebug`, APK uploaded as a workflow
-   artifact and attached to a GitHub release in the same run.
-2. `app/build.gradle` — `ndkVersion "28.2.13676358"` → `"27.2.12479018"`
-   (build-only pin; upstream's README requires NDK r27+).
+   NDK 28.2.13676358 (upstream's own pin), Alpine rootfs produced by
+   upstream's own `scripts/build-alpine-rootfs.sh` (official minirootfs,
+   sha256 sidecar verified), `./gradlew :app:assembleDebug`, APK uploaded
+   as a workflow artifact and attached to a GitHub release in the same run.
+2. `app/build.gradle` — **unchanged, byte-identical to upstream.** An
+   interim pin of `ndkVersion` to 27.2.12479018 (an artifact of the
+   machine that first staged this spike, which could not obtain NDK r28)
+   was tried and reverted: upstream's `backend_x86_64.c` calls
+   `__builtin_cpu_supports("f16c")`, which only NDK r28's clang accepts,
+   so the build requires upstream's pinned NDK.
 3. This file (new).
 4. `native/arm64emu` — the pinned submodule commit
    (`597189c644e02a175a613f08df3a83afae1cacbf`) is vendored into this
