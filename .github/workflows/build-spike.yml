@@ -1,0 +1,66 @@
+name: Build spike APK
+
+# Manual build of the Phase 0 sandbox spike: the upstream terminal app,
+# built from this fork on GitHub Actions. See SPIKE.md for purpose and the
+# complete list of changes vs upstream.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-spike:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install Android SDK platform 36, build-tools and NDK r27
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" "ndk;27.2.12479018"
+
+      # Upstream's own script: downloads the official Alpine aarch64
+      # minirootfs, verifies it against the CDN's .sha256 sidecar, and
+      # repackages it into UserlandRootfs/ where app/build.gradle bundles
+      # it as an asset when present. Needs only curl + xz (preinstalled).
+      - name: Build Alpine rootfs (upstream script)
+        run: ./scripts/build-alpine-rootfs.sh
+
+      - name: Build debug APK
+        run: ./gradlew :app:assembleDebug
+
+      - name: Upload APK as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: spike-apk
+          # app/build.gradle renames the output to A-SH_v<version>.apk,
+          # so match by glob rather than a fixed name.
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+      - name: Publish APK on a GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          APK=$(ls app/build/outputs/apk/debug/*.apk)
+          echo "Publishing $APK"
+          if gh release view spike-build-1 > /dev/null 2>&1; then
+            gh release upload spike-build-1 "$APK" --clobber
+          else
+            gh release create spike-build-1 "$APK" \
+              --title "Sandbox spike build 1" \
+              --notes "Phase 0 feasibility spike: upstream sylirre/ghostty-android-terminal built from this fork (NDK pinned to r27, Alpine rootfs bundled via upstream's script). See SPIKE.md."
+          fi
