@@ -18,10 +18,17 @@ name: Emulator smoke test
 #    access '/dev/kvm'"), and Google's SDK repository ships the emulator
 #    package for linux_x64 only — no linux_aarch64 build exists, so
 #    sdkmanager fails with "Warning: Failed to find package 'emulator'".
-#  * macos-15-xlarge (current): the larger macOS runners are bare-metal
-#    Apple Silicon, where HVF works. Larger runners are billed even for
-#    public repos; if the account has no billing set up, the job fails
-#    to start and that failure is the answer.
+#  * macos-26 (standard): the same HVF wall as macos-15, verbatim in
+#    run 41120930554.
+#  * macos-15-xlarge (STANDING CHOICE): the larger macOS runners are
+#    bare-metal Apple Silicon, where HVF works — but run 41120650268
+#    never started. GitHub's annotation on job 124286118503, verbatim:
+#    "The job was not started because recent account payments have
+#    failed or your spending limit needs to be increased. Please check
+#    the 'Billing & plans' section in your settings". Larger runners
+#    are billed even for public repos; only the account owner can clear
+#    that gate. The moment it is cleared, dispatching this workflow
+#    runs the checklist below end to end.
 # A local x86 VM cannot do this at all: current emulators refuse to boot
 # arm64 images on x86_64 hosts, and an x86_64 guest under pure software
 # emulation (no KVM) did not finish its first boot in 37 minutes.
@@ -52,7 +59,7 @@ permissions:
 
 jobs:
   smoke:
-    runs-on: macos-26
+    runs-on: macos-15-xlarge
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
